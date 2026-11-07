@@ -1,11 +1,5 @@
-<!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<!doctype html><html><head><meta charset=utf8><meta name="robots" content="noindex, nofollow, noarchive"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Доска для склонения</title>
-<meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,6 +60,8 @@ button.main {
 .opts { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 16px; }
 .opts fieldset { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 12px; margin: 0; padding: 0; border: 0; }
 .opts .lg { color: var(--muted); }
+.lemmas { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.lemmas label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .opts label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 
 .players { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
@@ -201,9 +197,6 @@ footer { padding-top: 2px; }
 @container (max-width: 560px) { .board { --tray: 136px; } .chip { padding: 2px 4px; } }
 @container (max-width: 470px) { .board { --tray: 118px; } }
 </style>
-</head>
-<body>
-
 <div class="wrap inmenu" id="wrap">
   <header class="chalk">
     <h1>Доска для склонения</h1>
@@ -375,6 +368,257 @@ function declineNum(word) {
   });
   return [0, 1, 2, 3, 4, 5].map(c => parts.map(f => f[c]).join(' '));
 }
+/* ---------- Числительное + слово, собирательные, дробные ---------- */
+const OBA = { 'оба': ['оба','обоих','обоим','оба','обоими','обоих'], 'обе': ['обе','обеих','обеим','обе','обеими','обеих'] };
+const COLL = { 'двое':'дво','трое':'тро','четверо':'четвер','пятеро':'пятер','шестеро':'шестер','семеро':'семер','восьмеро':'восьмер','девятеро':'девятер','десятеро':'десятер' };
+const POL = { 'полтора': ['полтора','полутора','полутора','полтора','полутора','полутора'], 'полторы': ['полторы','полутора','полутора','полторы','полутора','полутора'],
+  'полтораста': ['полтораста','полутораста','полутораста','полтораста','полутораста','полутораста'] };
+const ORD = 'втор трет четверт пят шест седьм восьм девят десят одиннадцат двенадцат тринадцат четырнадцат пятнадцат шестнадцат семнадцат восемнадцат девятнадцат двадцат тридцат сороков пятидесят шестидесят семидесят восьмидесят девяност сот тысячн'
+  .split(' ').sort((a, b) => b.length - a.length);
+const ORD_END = ['ая','ой','ую','ых','ым','ыми','ые','ья','ьей','ью','ьих','ьим','ьими','ьи','и','ий','ый'];
+const ordStem = x => ORD.find(st => x.startsWith(st) && ORD_END.includes(x.slice(st.length))) || null;
+function ordForms(st, sg) {
+  if (st === 'трет') return sg ? ['третья','третьей','третьей','третью','третьей','третьей'] : ['третьих','третьих','третьим','третьих','третьими','третьих'];
+  const s = st === 'четверт' ? 'четвёрт' : st;
+  return sg ? [s+'ая', s+'ой', s+'ой', s+'ую', s+'ой', s+'ой'] : [s+'ых', s+'ых', s+'ым', s+'ых', s+'ыми', s+'ых'];
+}
+function numParts(t) {
+  return t.map((x, i) => {
+    if (x !== 'тысяча') return NUM[x].slice();
+    const prev = t[i - 1];
+    if (!prev || !NUM[prev] || prev === 'одна' || prev === 'тысяча') return ['тысяча','тысячи','тысяче','тысячу','тысячей','тысяче'];
+    if (['две','три','четыре'].includes(prev)) return ['тысячи','тысяч','тысячам','тысячи','тысячами','тысячах'];
+    return ['тысяч','тысяч','тысячам','тысяч','тысячами','тысячах'];
+  });
+}
+const joinCases = parts => [0, 1, 2, 3, 4, 5].map(c => parts.map(f => f[c]).join(' '));
+
+/* Множественное число существительных */
+const MASC_A = set('папа дядя дедушка мужчина юноша дядюшка папочка');
+const PL = {
+  'друг':['друзья','друзей'],'брат':['братья','братьев'],'сын':['сыновья','сыновей'],'стул':['стулья','стульев'],'лист':['листья','листьев'],
+  'дерево':['деревья','деревьев'],'перо':['перья','перьев'],'крыло':['крылья','крыльев'],'колос':['колосья','колосьев'],'муж':['мужья','мужей'],'князь':['князья','князей'],
+  'человек':['люди','людей'],'ребёнок':['дети','детей'],'ребенок':['дети','детей'],'сосед':['соседи','соседей'],'хозяин':['хозяева','хозяев'],
+  'глаз':['глаза','глаз'],'дом':['дома','домов'],'город':['города','городов'],'лес':['леса','лесов'],'берег':['берега','берегов'],'луг':['луга','лугов'],
+  'снег':['снега','снегов'],'рог':['рога','рогов'],'бок':['бока','боков'],'голос':['голоса','голосов'],'поезд':['поезда','поездов'],'цвет':['цвета','цветов'],
+  'доктор':['доктора','докторов'],'повар':['повара','поваров'],'учитель':['учителя','учителей'],'паспорт':['паспорта','паспортов'],'адрес':['адреса','адресов'],
+  'вечер':['вечера','вечеров'],'остров':['острова','островов'],'парус':['паруса','парусов'],'мастер':['мастера','мастеров'],'номер':['номера','номеров'],
+  'сорт':['сорта','сортов'],'рукав':['рукава','рукавов'],'колокол':['колокола','колоколов'],'сторож':['сторожа','сторожей'],'директор':['директора','директоров'],
+  'профессор':['профессора','профессоров'],'ухо':['уши','ушей'],'плечо':['плечи','плеч'],'колено':['колени','коленей'],'небо':['небеса','небес'],'чудо':['чудеса','чудес'],
+  'яблоко':['яблоки','яблок'],'облако':['облака','облаков'],'семя':['семена','семян'],'мать':['матери','матерей'],'дочь':['дочери','дочерей'],'курица':['куры','кур'],
+  'сестра':['сёстры','сестёр'],'жена':['жёны','жён'],'звезда':['звёзды','звёзд'],'дядя':['дяди','дядей'],'тётя':['тёти','тётей'],'тетя':['тёти','тётей'],'юноша':['юноши','юношей'],
+  'свеча':['свечи','свечей'],'песня':['песни','песен'],'вишня':['вишни','вишен'],'день':['дни','дней'],'путь':['пути','путей'],'цыплёнок':['цыплята','цыплят'],
+  'весна':['вёсны','вёсен'],'сосна':['сосны','сосен'],'яйцо':['яйца','яиц'],'кольцо':['кольца','колец'],'сердце':['сердца','сердец'],'солнце':['солнца','солнц'],
+  'полотенце':['полотенца','полотенец'],'платье':['платья','платьев'],'ружьё':['ружья','ружей'],'земля':['земли','земель'],'деревня':['деревни','деревень'],
+  'кухня':['кухни','кухонь'],'башня':['башни','башен'],'англичанин':['англичане','англичан'],'горожанин':['горожане','горожан'],'крестьянин':['крестьяне','крестьян'],
+  'гражданин':['граждане','граждан'],'лицо':['лица','лиц'],'море':['моря','морей'],'поле':['поля','полей'],'время':['времена','времён'],'имя':['имена','имён']
+};
+const PLINS = { 'человек':'людьми', 'ребёнок':'детьми', 'ребенок':'детьми', 'лошадь':'лошадьми', 'дочь':'дочерьми' };
+const FEM_ANIM = set('мама бабушка сестра подруга девочка девушка женщина тётя тетя дочь мать учительница ученица школьница внучка принцесса королева царевна кошка собака корова лошадь коза овца свинья птица курица утка лиса белка мышь крыса лягушка рыба щука змея пчела муха бабочка стрекоза сова ворона сорока синица ласточка обезьяна черепаха зебра жаба улитка гусеница кукушка цапля');
+const COMMON = set('окно слово место дело лето село озеро колесо облако яблоко дерево письмо кресло ведро число стекло зеркало одеяло полотенце блюдо мыло перо крыло небо море поле солнце сердце платье здание задание упражнение предложение яйцо кольцо молоко ухо плечо колено лицо тело блюдце ' +
+  'копейка семья статья скамья пятно бревно зерно ведро тетрадь площадь дверь кровать мебель морковь соль ночь печь вещь тень осень ель цель роль боль жизнь радость кость степь сеть нить ось речь помощь мысль неделя земля капля дыня буря пуля кухня песня башня яблоня няня');
+function genderOf(l) {
+  if (MASC_A.has(l)) return 'm';
+  if (MYA.has(l)) return 'n';
+  if (INDECL.has(l)) return ['кофе','пони','шимпанзе'].includes(l) ? 'm' : 'n';
+  if (/[ая]$/.test(l)) return 'f';
+  if (/[оеёуюи]$/.test(l)) return 'n';
+  if (/ь$/.test(l)) return isMascSoft(l) ? 'm' : 'f';
+  return 'm';
+}
+const isAnimate = l => guessAnim(l) || FEM_ANIM.has(l);
+const tail = (st, soft) => soft ? [st+'ям', st+'ями', st+'ях'] : [st+'ам', st+'ами', st+'ах'];
+function zeroA(s) {
+  const m = s.match(/([^аеёиоуыэюя])к$/);
+  if (!m) return s;
+  if (m[1] === 'ь' || m[1] === 'й') return s.slice(0, -2) + 'ек';
+  return s.slice(0, -1) + (/[жшчщ]/.test(m[1]) ? 'ек' : 'ок');
+}
+function zeroO(s) {
+  const m = s.match(/([^аеёиоуыэюя])([нлрм])$/);
+  if (!m) return s;
+  if (m[1] === 'ь') return s.slice(0, -2) + 'е' + m[2];
+  return s.slice(0, -1) + (/[кгх]/.test(m[1]) ? 'о' : 'е') + m[2];
+}
+function plural(l, masc) {
+  if (PL[l]) {
+    const [n, g] = PL[l], st = n.slice(0, -1);
+    const soft = /ья$/.test(n) || /я$/.test(n) || (/и$/.test(n) && !/[кгхжшчщ]$/.test(st));
+    const r = [n, g, ...tail(st, soft)];
+    if (PLINS[l]) r[3] = PLINS[l];
+    return r;
+  }
+  if (PLINS[l]) { const st = l.slice(0, -1); return [st+'и', st+'ей', st+'ям', PLINS[l], st+'ях']; }
+  if (INDECL.has(l) || /[уюэиы]$/.test(l)) return [l, l, l, l, l];
+  if (MYA.has(l)) { const s = l.slice(0, -1); return [s+'ена', s+'ён', ...tail(s+'ен', false)]; }
+  if (/[ёо]нок$/.test(l) && l.length > 5) { const s = l.replace(/[ёо]нок$/, ''), a = /[жшчщ]$/.test(s) ? 'ат' : 'ят'; return [s+a+'а', s+a, ...tail(s+a, false)]; }
+  const s = l.slice(0, -1), hushV = x => /[кгхжшчщ]$/.test(x), hush = x => /[жшчщ]$/.test(x);
+  if (/ия$/.test(l)) return [s+'и', s+'й', ...tail(s, true)];
+  if (/ья$/.test(l)) return [s+'и', s.slice(0, -1)+'ей', ...tail(s, true)];
+  if (/а$/.test(l)) return [s + (hushV(s) ? 'и' : 'ы'), zeroA(s), ...tail(s, false)];
+  if (/я$/.test(l)) return [s+'и', /[аеёиоуыэюя]$/.test(s) ? s+'й' : s+'ь', ...tail(s, true)];
+  if (/ие$/.test(l)) return [s+'я', s+'й', ...tail(s, true)];
+  if (/ье$/.test(l)) return [s+'я', s.slice(0, -1)+'ий', ...tail(s, true)];
+  if (/[её]$/.test(l)) return /[жшчщц]$/.test(s) ? [s+'а', s, ...tail(s, false)] : [s+'я', s+'ей', ...tail(s, true)];
+  if (/о$/.test(l)) return [s+'а', zeroO(s), ...tail(s, false)];
+  if (/ь$/.test(l)) { const st = (masc && fleetStem(l)) || s; return [st+'и', st+'ей', ...tail(st, !hush(st))]; }
+  if (/й$/.test(l)) { const st = fleetStem(l) || s; return [st+'и', st + (/ь$/.test(st) ? 'ёв' : 'ев'), ...tail(st, true)]; }
+  const st = fleetStem(l) || l;
+  let gen = st + 'ов';
+  if (hush(st)) gen = st + 'ей';
+  else if (/ц$/.test(st) && (EM_TS.has(l) || (syl(l) >= 3 && !OM_TS.has(l)))) gen = st + 'ев';
+  return [st + (hushV(st) ? 'и' : 'ы'), gen, ...tail(st, hush(st) ? false : false)];
+}
+
+/* Начальная форма слова после числительного */
+function candidates(f, k) {
+  const c = [];
+  const rev = st => { for (const key in FLEET) if (FLEET[key] === st) c.push(key); };
+  if (k === 'nom') return [f];
+  if (k === 'gensg') {
+    const st = f.slice(0, -1), e = f.slice(-1);
+    rev(st);
+    if (e === 'а') c.push(st, st+'о', st.replace(/к$/, 'ок'), st.replace(/ьк$/, 'ёк'), st.replace(/йк$/, 'ёк'), st.replace(/ц$/, 'ец'), st.replace(/ьц$/, 'ец'));
+    if (e === 'я') c.push(st+'ь', st+'й', st+'е', st+'ё', st.replace(/ь$/, 'ей'), st.replace(/ен$/, 'я'));
+    if (e === 'ы') c.push(st+'а');
+    if (e === 'и') c.push(st+'а', st+'я', st+'ь', st.replace(/ен$/, 'я'));
+    return c;
+  }
+  for (const key in PL) if (PL[key][1] === f) c.push(key);
+  let m;
+  if ((m = f.match(/^(.+)(ов|ев|ёв)$/))) { const st = m[1]; rev(st); c.push(st, st+'й', st.replace(/ь$/, 'ей'), st.replace(/к$/, 'ок'), st.replace(/ьк$/, 'ёк'), st.replace(/ц$/, 'ец')); }
+  if ((m = f.match(/^(.+)ей$/))) { const st = m[1]; rev(st); c.push(st, st+'ь', st+'а', st+'я', st+'е', st+'ья', st+'ё'); }
+  if (/ий$/.test(f)) { const st = f.slice(0, -1); c.push(st+'я', st+'е'); }
+  if (/[ьй]$/.test(f)) c.push(f.slice(0, -1)+'я');
+  c.push(f+'а', f+'о', f.replace(/[ео](к)$/, '$1')+'а', f.replace(/е(к)$/, 'й$1')+'а', f.replace(/[ео]([нлрм])$/, '$1')+'о', f.replace(/е([нлрм])$/, 'ь$1')+'о',
+    f.replace(/ят$/, 'ёнок'), f.replace(/ат$/, 'онок'));
+  return c;
+}
+const impossible = c => /[кгхжшчщ][яюы]|[кгхц]ь$|[кгх]й$|й[аоуэ]|[^аеёиоуыэюя]й/.test(c) || !/^[а-яё-]+$/.test(c) || c.length < 2;
+const known = c => COMMON.has(c) || !!PL[c] || ANIM.has(c) || FEM_ANIM.has(c) || MASC_B.has(c);
+function resolveNoun(f, need, hint) {
+  const order = [need, 'nom', 'gensg', 'genpl'].filter((v, i, a) => a.indexOf(v) === i);
+  let out = [];
+  for (const k of order) {
+    for (const c of candidates(f, k)) {
+      if (out.includes(c) || impossible(c)) continue;
+      const masc = isMascSoft(c), d = decline(c, { anim: false, masc });
+      if (!d) continue;
+      if (k === 'nom' || (k === 'gensg' && d[1] === f) || (k === 'genpl' && plural(c, masc)[1] === f)) out.push(c);
+    }
+    if (out.length) break;
+  }
+  const fits = c => { const g = genderOf(c); return !hint || (hint === 'f' ? g === 'f' : hint === 'n' ? g === 'n' : g !== 'f'); };
+  if (out.some(fits)) out = out.filter(fits);
+  const score = c => known(c) ? -100 : (/[оеё]$/.test(c) ? 5 : 0) + (/[^аиоуыэюя][ео]ка$/.test(c) ? 10 : 0) + (/(ья|ея|ье)$/.test(c) ? 8 : 0) + (/[жшчщ]ь$/.test(c) ? 8 : 0) + (/[яа]та$/.test(c) ? 10 : 0) + (/[^аеёиоуыэюяь]ц$/.test(c) ? 10 : 0);
+  out.sort((a, b) => score(a) - score(b));
+  const best = out.length ? score(out[0]) : 0;
+  return out.filter(c => score(c) < best + 5).slice(0, 3);
+}
+function needKind(ph) {
+  if (ph.kind === 'oba' || ph.kind === 'pol') return 'gensg';
+  if (ph.kind === 'coll' || ph.kind === 'pol150') return 'genpl';
+  const last = ph.num[ph.num.length - 1];
+  if (['один','одна','одно'].includes(last)) return 'nom';
+  if (['два','две','три','четыре'].includes(last)) return 'gensg';
+  return 'genpl';
+}
+function hintOf(ph) {
+  const w = ph.num[ph.num.length - 1];
+  if (['обе','полторы','одна','две'].includes(w)) return 'f';
+  if (w === 'одно') return 'n';
+  if (['оба','полтора','один','два'].includes(w)) return 'mn';
+  return null;
+}
+function parsePhrase(raw) {
+  let toks = raw.toLowerCase().trim().split(/\s+/);
+  if (/^\d+$/.test(toks[0])) {
+    let k = 0, d = '';
+    while (k < toks.length && /^\d+$/.test(toks[k])) d += toks[k++];
+    const n = parseInt(d, 10);
+    if (n > 999999) return 'big';
+    toks = numToWords(n).concat(toks.slice(k));
+  }
+  if (toks.some(x => /\d/.test(x))) return 'big';
+  const norm = toks.map(x => x.replace(/ё/g, 'е').replace(/^тысяч(а|и|у|ей|е|ами|ам|ах)?$/, 'тысяча'));
+  let i = 0, kind = null, num = [];
+  const first = norm[0];
+  if (OBA[first]) { kind = 'oba'; num = [first]; i = 1; }
+  else if (COLL[first]) { kind = 'coll'; num = [first]; i = 1; }
+  else if (POL[first]) { kind = first === 'полтораста' ? 'pol150' : 'pol'; num = [first]; i = 1; }
+  else { while (i < norm.length && (norm[i] === 'тысяча' || NUM[norm[i]])) num.push(norm[i++]); if (num.length) kind = 'card'; }
+  if (!kind) return null;
+  if (kind === 'card' && i < norm.length) {
+    const st = ordStem(norm[i]);
+    if (st) {
+      const rest = toks.slice(i + 1);
+      if (rest.some(x => !/^[а-яё-]+$/.test(x))) return 'bad';
+      return { kind: 'frac', num, ord: st, rest: rest.join(' '), noun: null };
+    }
+  }
+  const rest = toks.slice(i);
+  if (rest.length > 1) return 'long';
+  if (rest.length === 1 && !/^[а-яё-]+$/.test(rest[0])) return 'bad';
+  return { kind, num, noun: rest[0] || null };
+}
+function phraseForms(pl) {
+  const ph = pl.ph, anim = pl.o.anim, noun = ph.noun, l = pl.lemma;
+  let g = null, sg = null, pu = null, warn = '';
+  if (ph.kind === 'frac') {
+    const t = ph.num.map(x => x === 'один' || x === 'одно' ? 'одна' : x === 'два' ? 'две' : x);
+    const parts = numParts(t);
+    parts.push(ordForms(ph.ord, t[t.length - 1] === 'одна'));
+    return { forms: joinCases(parts).map(x => ph.rest ? x + ' ' + ph.rest : x), warn };
+  }
+  if (noun) {
+    if (l) {
+      g = /ь$/.test(l) && info(l).gender ? (pl.o.masc ? 'm' : 'f') : genderOf(l);
+      const masc = g === 'm';
+      sg = decline(l, { anim, masc }); pu = plural(l, masc);
+    }
+    if (!sg || !pu) {
+      warn = `Проверь формы слова «${noun}» в разделе «Исправить формы слова».`;
+      sg = Array(6).fill(noun); pu = Array(5).fill(noun);
+    }
+  }
+  const P = pu ? { gen: pu[1], dat: pu[2], ins: pu[3], prep: pu[4] } : null;
+  let nf, nounF = null;
+  if (ph.kind === 'oba') {
+    nf = OBA[g ? (g === 'f' ? 'обе' : 'оба') : ph.num[0]].slice();
+    if (anim) nf[3] = nf[1];
+    if (noun) nounF = [sg[1], P.gen, P.dat, anim ? P.gen : sg[1], P.ins, P.prep];
+  } else if (ph.kind === 'coll') {
+    const w = ph.num[0], st = COLL[w], v = /^(дво|тро)$/.test(st) ? 'и' : 'ы';
+    nf = [w, st+v+'х', st+v+'м', anim ? st+v+'х' : w, st+v+'ми', st+v+'х'];
+    if (noun) nounF = [P.gen, P.gen, P.dat, P.gen, P.ins, P.prep];
+  } else if (ph.kind === 'pol') {
+    nf = POL[g ? (g === 'f' ? 'полторы' : 'полтора') : ph.num[0]].slice();
+    if (noun) nounF = [sg[1], P.gen, P.dat, sg[1], P.ins, P.prep];
+  } else if (ph.kind === 'pol150') {
+    nf = POL['полтораста'].slice();
+    if (noun) nounF = [P.gen, P.gen, P.dat, P.gen, P.ins, P.prep];
+  } else {
+    const t = ph.num.slice(), li = t.length - 1;
+    if (noun && g) {
+      if (['один','одна','одно'].includes(t[li])) t[li] = g === 'f' ? 'одна' : g === 'n' ? 'одно' : 'один';
+      if (['два','две'].includes(t[li])) t[li] = g === 'f' ? 'две' : 'два';
+    }
+    t.forEach((x, i) => { if (t[i + 1] === 'тысяча') t[i] = x === 'один' ? 'одна' : x === 'два' ? 'две' : x; });
+    const parts = numParts(t), last = t[li];
+    if (noun && anim) {
+      if (last === 'один') parts[li][3] = parts[li][1];
+      if (t.length === 1 && ['два','две','три','четыре'].includes(last)) parts[0][3] = parts[0][1];
+    }
+    nf = joinCases(parts);
+    if (noun) {
+      if (['один','одна','одно'].includes(last)) nounF = sg.slice();
+      else if (['два','две','три','четыре'].includes(last)) nounF = [sg[1], P.gen, P.dat, t.length === 1 && anim ? P.gen : sg[1], P.ins, P.prep];
+      else if (last === 'тысяча') nounF = Array(6).fill(P.gen);
+      else nounF = [P.gen, P.gen, P.dat, P.gen, P.ins, P.prep];
+    }
+  }
+  return { forms: nounF ? nf.map((x, i) => x + ' ' + nounF[i]) : nf, warn };
+}
 /* ---------- Экран ---------- */
 const CASES = [
   ['Именительный', 'кто? что?', 'есть', 'именительном'],
@@ -392,7 +636,7 @@ let mode = 1, doneCount = 0;
 $('cards').innerHTML = players.map((_, p) => `
   <div class="mcard p${p}" id="card${p}">
     <input class="pname-in" id="name${p}" type="text" value="Игрок ${p + 1}" autocomplete="off" aria-label="Имя игрока ${p + 1}">
-    <label class="big" for="word${p}">Напиши слово или число</label>
+    <label class="big" for="word${p}">Напиши слово, число или число со словом</label>
     <input class="wordin" id="word${p}" data-word="${p}" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="done">
     <div class="opts" id="opts${p}" hidden>
       <fieldset id="optAnim${p}" hidden>
@@ -404,6 +648,10 @@ $('cards').innerHTML = players.map((_, p) => `
         <span class="lg">Слово</span>
         <label><input type="radio" name="gen${p}" id="genM${p}" data-opt="${p}"> он, мой</label>
         <label><input type="radio" name="gen${p}" id="genF${p}" data-opt="${p}"> она, моя</label>
+      </fieldset>
+      <fieldset id="optLemma${p}" hidden>
+        <span class="lg">Начальная форма</span>
+        <span class="lemmas" id="lemmas${p}"></span>
       </fieldset>
     </div>
     <p class="note" id="note${p}"></p>
@@ -445,7 +693,8 @@ const withPrep = s => (/^[аиоуэ]/i.test(s) ? 'об ' : 'о ') + s;
 function compute(p) {
   const pl = players[p];
   const capit = s => pl.cap && s ? s[0].toUpperCase() + s.slice(1) : s;
-  const res = pl.num ? declineNum(pl.word) : decline(pl.word, pl.o);
+  let res, warn = '';
+  if (pl.num) { const r = phraseForms(pl); res = r.forms; warn = r.warn; } else res = decline(pl.word, pl.o);
   if (!res) {
     pl.forms = [capit(pl.word), '', '', '', '', ''];
     setNote(p, 'Это слово похоже на множественное число. Напишите его формы в разделе «Исправить формы слова».', true);
@@ -455,22 +704,33 @@ function compute(p) {
     pl.forms[5] = withPrep(pl.forms[5]);
     setNote(p, '');
   }
+  if (warn) { setNote(p, warn, true); $('editBox' + p).open = true; }
   pl.forms.forEach((f, i) => { $(`form${p}-${i}`).value = f; });
-  const a = !pl.num && needsAnim(pl.word, pl.o.masc), g = !pl.num && info(pl.word).gender;
-  $('optAnim' + p).hidden = !a; $('optGen' + p).hidden = !g; $('opts' + p).hidden = !(a || g);
+  const a = pl.num ? (!!pl.ph.noun || ['oba', 'coll'].includes(pl.ph.kind)) : needsAnim(pl.word, pl.o.masc);
+  const g = pl.num ? !!(pl.lemma && pl.ph.noun && info(pl.lemma).gender) : info(pl.word).gender;
+  const showL = pl.num && pl.cands && pl.cands.length > 1;
+  $('optLemma' + p).hidden = !showL;
+  $('lemmas' + p).innerHTML = showL ? pl.cands.map(c => `<label><input type="radio" name="lem${p}" data-lemma="${p}" value="${c}"${c === pl.lemma ? ' checked' : ''}> ${c}</label>`).join('') : '';
+  $('optAnim' + p).hidden = !a; $('optGen' + p).hidden = !g; $('opts' + p).hidden = !(a || g || showL);
   $('animYes' + p).checked = pl.o.anim; $('animNo' + p).checked = !pl.o.anim;
   $('genM' + p).checked = pl.o.masc; $('genF' + p).checked = !pl.o.masc;
 }
 function onWord(p) {
   const pl = players[p], raw = $('word' + p).value.trim();
-  pl.word = ''; pl.forms = []; pl.num = false;
+  pl.word = ''; pl.forms = []; pl.num = false; pl.ph = null; pl.cands = []; pl.lemma = null;
   $('opts' + p).hidden = true;
   CASES.forEach((_, i) => { $(`form${p}-${i}`).value = ''; });
   if (!raw) { setNote(p, ''); return; }
-  const num = parseNum(raw);
-  if (num) { pl.num = true; pl.word = num; pl.cap = false; pl.o = { anim: false, masc: false }; compute(p); return; }
-  if (/\d/.test(raw)) { setNote(p, 'Напиши число от 0 до 999 999.', true); return; }
-  if (!/^[а-яё-]+$/i.test(raw)) { setNote(p, 'Напиши одно слово или числительное русскими буквами.', true); return; }
+  const ph = parsePhrase(raw);
+  if (ph === 'big') { setNote(p, 'Напиши число от 0 до 999 999.', true); return; }
+  if (ph === 'long' || ph === 'bad') { setNote(p, 'После числительного напиши одно слово, например «оба друга».', true); return; }
+  if (ph) {
+    pl.num = true; pl.ph = ph; pl.word = raw.toLowerCase(); pl.cap = false;
+    if (ph.noun) { pl.cands = resolveNoun(ph.noun, needKind(ph), hintOf(ph)); pl.lemma = pl.cands[0] || null; }
+    pl.o = { anim: pl.lemma ? isAnimate(pl.lemma) : ['oba', 'coll'].includes(ph.kind), masc: pl.lemma ? isMascSoft(pl.lemma) : false };
+    compute(p); return;
+  }
+  if (!/^[а-яё-]+$/i.test(raw)) { setNote(p, 'Напиши одно слово, число или число со словом, например «оба друга».', true); return; }
   pl.word = raw.toLowerCase(); pl.cap = raw[0] !== raw[0].toLowerCase();
   pl.o = { masc: info(pl.word).masc, anim: guessAnim(pl.word) };
   compute(p);
@@ -499,7 +759,7 @@ function start() {
     clearResult(p);
     $('pname' + p).textContent = $('name' + p).value.trim() || `Игрок ${p + 1}`;
     $('score' + p).textContent = 'Очки: ' + pl.score;
-    const Q = pl.num ? NUMQ : CASES.map(c => c[1]);
+    const Q = pl.num && !pl.ph.noun ? NUMQ : CASES.map(c => c[1]);
     CASES.forEach((_, i) => { $(`q${p}-${i}`).textContent = Q[i]; $(`qs${p}-${i}`).textContent = Q[i]; });
   });
   if (document.activeElement) document.activeElement.blur();
@@ -623,11 +883,16 @@ $('cards').addEventListener('input', e => {
 });
 $('cards').addEventListener('change', e => {
   const t = e.target;
+  if (t.dataset.lemma !== undefined) {
+    const p = +t.dataset.lemma, pl = players[p];
+    pl.lemma = t.value; pl.o = { anim: isAnimate(pl.lemma), masc: isMascSoft(pl.lemma) };
+    compute(p); return;
+  }
   if (t.dataset.opt === undefined) return;
   const p = +t.dataset.opt, pl = players[p];
   const wasMasc = pl.o.masc;
   pl.o.anim = $('animYes' + p).checked; pl.o.masc = $('genM' + p).checked;
-  if (pl.o.masc !== wasMasc) pl.o.anim = pl.o.masc && guessAnim(pl.word);
+  if (pl.o.masc !== wasMasc && !pl.num) pl.o.anim = pl.o.masc && guessAnim(pl.word);
   compute(p);
 });
 $('cards').addEventListener('keydown', e => {
@@ -756,5 +1021,4 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fi
 setMode(1);
 </script>
 
-</body>
-</html>
+</body></html>
