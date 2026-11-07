@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Доска для склонения</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pangolin&family=Nunito:wght@600;700;800;900&display=swap">
+<style>
+/* Школьная тетрадь в клетку, зелёная доска сверху, у каждого падежа свой цвет. Один светлый образ. */
+:root {
+  --paper: #fdfeff; --grid: #d6e6f5; --ink: #22324a; --muted: #4d5e74; --faint: #7a8796;
+  --board: #2f6b4f; --frame: #b9834c; --chalk: #fdfdf5; --yellow: #ffd84d;
+  --blue: #2a6fdb; --orange: #e8590c; --card: #fff4b8; --card-line: #d9a916; --line: #b8c9dc;
+  --c0: #ffdfe4; --c1: #ffe6c7; --c2: #fff5bd; --c3: #d6f5d0; --c4: #d3ecff; --c5: #e7dcff;
+  --good: #137a3e; --bad: #c9241b;
+  --display: "Pangolin", "Comic Sans MS", cursive;
+  --body: "Nunito", "Segoe UI", Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  color: var(--ink); font: 700 18px/1.3 var(--body); background-color: var(--paper);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+.wrap {
+  max-width: 1060px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px;
+  padding-block: 8px 6px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap.duo { max-width: 1600px; }
+.chalk {
+  display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; justify-content: space-between;
+  padding: 3px 14px; background: var(--board); color: var(--chalk);
+  border: 5px solid var(--frame); border-radius: 12px;
+}
+h1 { margin: 0; font: 400 26px/1.1 var(--display); text-wrap: balance; }
+.modes { display: flex; gap: 8px; }
+.modes button {
+  height: 36px; padding: 0 16px; cursor: pointer; font: 800 16px var(--body);
+  color: var(--chalk); background: transparent; border: 2px solid var(--chalk); border-radius: 23px;
+}
+.modes button[aria-pressed="true"] { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
+.entry { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.entry > input {
+  flex: 1 1 200px; min-width: 0; max-width: 340px; height: 44px; padding: 0 14px;
+  font: 800 20px var(--body); color: var(--ink); background: #fff;
+  border: 3px solid var(--blue); border-radius: 14px;
+}
+.entry > input::placeholder { color: var(--faint); font-weight: 700; }
+button.main {
+  height: 44px; padding: 0 20px; border: 0; border-radius: 14px; cursor: pointer;
+  font: 800 20px var(--body); background: var(--blue); color: #fff;
+}
+.check button.main { background: var(--good); }
+.note { margin: 4px 0 0; font-size: 15px; font-weight: 600; color: var(--muted); }
+.note:not(.warn) { display: none; }
+.note.warn { color: var(--bad); }
+.opts { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 16px; }
+.opts fieldset { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 12px; margin: 0; padding: 0; border: 0; }
+.opts .lg { color: var(--muted); }
+.opts label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+
+.players { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.player { container-type: inline-size; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-content: start; }
+.ptop { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 1px 12px; border-radius: 12px; color: #fff; }
+.p0 .ptop { background: var(--blue); }
+.p1 .ptop { background: var(--orange); }
+.ptop input {
+  flex: 1; min-width: 0; height: 32px; padding: 0 8px; font: 800 18px var(--body); color: #fff;
+  background: transparent; border: 0; border-bottom: 2px dashed rgba(255, 255, 255, .7);
+}
+.score { flex: none; font-weight: 900; font-size: 18px; }
+
+.board { --row: 60px; --tray: 220px; --cols: 158px 136px 82px minmax(0, 1fr); display: grid; grid-template-columns: minmax(0, 1fr) var(--tray); gap: 12px; align-items: start; }
+.head { height: 22px; display: flex; align-items: center; font-size: 15px; font-weight: 800; color: var(--muted); }
+.head.cols { display: grid; gap: 10px; padding: 0 10px; grid-template-columns: var(--cols); }
+.head.spacer { display: none; }
+.cases { display: grid; gap: 0; }
+.case {
+  height: var(--row); display: grid; align-items: center; gap: 10px; padding: 0 10px;
+  grid-template-columns: var(--cols); border: 2px solid #fff; border-radius: 14px;
+}
+.c0 { background: var(--c0); } .c1 { background: var(--c1); } .c2 { background: var(--c2); }
+.c3 { background: var(--c3); } .c4 { background: var(--c4); } .c5 { background: var(--c5); }
+.name { font-weight: 900; }
+.name span { display: none; }
+.q { font-size: 17px; }
+.help { font-size: 18px; font-weight: 800; }
+.zone, .slot {
+  height: calc(var(--row) - 8px); display: flex; align-items: stretch; min-width: 0;
+  border-radius: 12px; border: 2px dashed var(--line); background: #fff;
+}
+.zone { cursor: pointer; border-color: var(--muted); }
+.zone.over { outline: 3px solid var(--blue); outline-offset: 1px; }
+.zone:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.tray-body { display: grid; }
+.tray-cell { height: var(--row); display: flex; align-items: center; }
+.slot { width: 100%; }
+.slot.taken { border-color: transparent; background: transparent; }
+.tray-empty { align-self: center; width: 100%; padding: 4px 8px; text-align: center; font-size: 15px; color: var(--muted); }
+.chip {
+  flex: 1; min-width: 0; padding: 2px 8px; border: 2px solid var(--card-line); border-radius: 12px;
+  background: var(--card); color: var(--ink); font: 800 21px/1.1 var(--body);
+  overflow-wrap: anywhere; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.chip.sel { outline: 3px solid var(--blue); outline-offset: 1px; }
+.chip.lift { visibility: hidden; }
+.ghost { position: fixed; left: 0; top: 0; z-index: 20; pointer-events: none; display: flex; align-items: center; justify-content: center; text-align: center; }
+
+.check { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.result { flex: 1 1 240px; min-width: 0; min-height: 44px; display: flex; align-items: center; font-size: 18px; line-height: 1.15; font-weight: 900; }
+.result.good { color: var(--good); }
+.result.bad { color: var(--bad); }
+
+.bottom { display: flex; flex-wrap: wrap; gap: 2px 16px; align-items: center; justify-content: space-between; }
+details[open] { flex-basis: 100%; }
+summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.edit-note { margin: 8px 0 10px; max-width: 65ch; font-size: 16px; font-weight: 600; color: var(--muted); }
+.edit { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 16px; }
+.edit label { display: grid; gap: 2px; font-size: 15px; color: var(--muted); }
+.edit input { width: 100%; height: 44px; padding: 0 10px; font: 700 18px var(--body); color: var(--ink); background: #fff; border: 2px solid var(--line); border-radius: 10px; }
+footer { font-size: 12px; font-weight: 600; color: var(--faint); text-align: center; }
+footer a { color: inherit; }
+
+@media (min-width: 760px) {
+  .duo .players { grid-template-columns: repeat(2, minmax(0, 1fr)); touch-action: none; overscroll-behavior: none; }
+}
+@container (max-width: 800px) {
+  .board { --tray: 160px; --cols: 118px 68px minmax(0, 1fr); gap: 8px; }
+  .head.cols { display: none; }
+  .head.spacer { display: flex; }
+  .case { gap: 6px; padding: 0 8px; }
+  .name { line-height: 1.1; font-size: 15px; }
+  .name span { display: block; font-weight: 700; font-size: 14px; }
+  .q { display: none; }
+  .help { font-size: 15px; }
+  .chip { font-size: 19px; }
+}
+@container (max-width: 560px) {
+  .board { --tray: 136px; }
+  .chip { font-size: 17px; padding: 2px 4px; }
+}
+@container (max-width: 470px) {
+  .board { --tray: 118px; --cols: 76px minmax(0, 1fr); gap: 6px; }
+  .case { grid-template-rows: auto auto; gap: 1px 6px; align-content: center; grid-template-areas: "n n" "h z"; }
+  .name { grid-area: n; }
+  .name span { display: inline; font-size: 13px; }
+  .help { grid-area: h; }
+  .zone { grid-area: z; height: min(52px, calc(var(--row) - 26px)); }
+  .slot { height: min(52px, calc(var(--row) - 26px)); }
+  .chip { font-size: 17px; padding: 2px 3px; }
+}
+@media (max-width: 480px) {
+  h1 { font-size: 22px; }
+  .modes button { padding: 0 10px; font-size: 14px; }
+  .entry > input { flex-basis: 150px; }
+  button.main { padding: 0 16px; }
+}
+
+/* Меню, длинные слова */
+.screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.menu { gap: 16px; padding-top: 8px; }
+.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.mcard { min-width: 0; display: grid; gap: 8px; align-content: start; padding: 14px; background: #fff; border: 3px solid var(--blue); border-radius: 16px; }
+.mcard.p1 { border-color: var(--orange); }
+.mcard .pname-in { height: 40px; padding: 0 10px; font: 800 18px var(--body); color: var(--ink); background: var(--c2); border: 0; border-radius: 10px; width: 100%; }
+.mcard label.big { font-size: 16px; color: var(--muted); }
+.wordin { width: 100%; height: 60px; padding: 0 16px; font: 800 26px var(--body); color: var(--ink); background: #fff; border: 3px solid var(--blue); border-radius: 14px; }
+.p1 .wordin { border-color: var(--orange); }
+.wordin::placeholder { color: var(--faint); font-weight: 700; }
+.mcard .note { margin: 0; }
+.mcard details { margin-top: 2px; }
+.edit { margin-top: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+button.main.gostart { justify-self: center; height: 68px; padding: 0 56px; font-size: 26px; background: var(--good); }
+.wrap.inmenu { min-height: 100dvh; grid-template-rows: auto 1fr auto; }
+.wrap.inmenu .menu { align-self: start; }
+.back { height: 36px; padding: 0 16px; cursor: pointer; font: 800 16px var(--body); color: var(--chalk); background: transparent; border: 2px solid var(--chalk); border-radius: 23px; }
+.pname { flex: 1; min-width: 0; padding: 4px 8px; font-size: 18px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip { white-space: nowrap; overflow: hidden; padding: 2px 6px; }
+.chip span { display: inline-block; }
+.chip.wrap2 { white-space: normal; line-height: 1.05; }
+.chip.wrap2 span { max-width: 100%; }
+.result { min-height: 58px; font-size: 16px; }
+footer { padding-top: 2px; }
+.mainfoot { justify-content: center; }
+.mainfoot.ingame { justify-content: space-between; }
+.fixbtn { padding: 4px 2px; cursor: pointer; font: 700 15px var(--body); color: var(--muted); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; }
+.fixbtn:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.back:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+@media (min-width: 700px) { .duo .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 761px) { .wrap:not(.duo) .menu { max-width: 640px; width: 100%; justify-self: center; } }
+@container (max-width: 800px) { .board { --tray: 180px; } }
+@container (max-width: 560px) { .board { --tray: 136px; } .chip { padding: 2px 4px; } }
+@container (max-width: 470px) { .board { --tray: 118px; } }
+</style>
+</head>
+<body>
+
+<div class="wrap inmenu" id="wrap">
+  <header class="chalk">
+    <h1>Доска для склонения</h1>
+    <div class="modes" id="modes" role="group" aria-label="Сколько учеников">
+      <button id="mode1" type="button" aria-pressed="true">Один ученик</button>
+      <button id="mode2" type="button" aria-pressed="false">Двое</button>
+    </div>
+    <button class="back" id="back" type="button" hidden>Новое слово</button>
+  </header>
+
+  <section class="screen menu" id="menu" aria-label="Меню">
+    <div class="cards" id="cards"></div>
+    <button class="main gostart" id="start" type="button">Разобрать</button>
+  </section>
+
+  <section class="screen" id="game" aria-label="Склонение" hidden>
+    <div class="players" id="players"></div>
+  </section>
+
+  <div class="bottom mainfoot" id="bottom">
+    <button class="fixbtn" id="fix" type="button" hidden>▸ Исправить формы слова</button>
+    <footer>Разработчик: Курбаниязова Ильмира Климентовна · inst: <a href="https://www.instagram.com/dlya.urokov23/" target="_blank" rel="noopener">@dlya.urokov23</a></footer>
+  </div>
+</div>
+
+<script>
+/* ---------- Склонение ---------- */
+const set = s => new Set(s.split(' '));
+const VOW = /[аеёиоуыэюя]/g;
+const syl = w => (w.match(VOW) || []).length;
+const INDECL = set('кино пальто метро радио пианино какао домино эскимо табло бюро депо лото кафе кофе шоссе ателье резюме кашне шимпанзе такси пони киви жюри колибри алиби хобби');
+const MYA = set('время имя знамя племя пламя семя темя бремя вымя стремя');
+const IRR = {
+  'путь': ['пути','пути','путь','путём','пути'],
+  'мать': ['матери','матери','мать','матерью','матери'],
+  'дочь': ['дочери','дочери','дочь','дочерью','дочери'],
+  'церковь': ['церкви','церкви','церковь','церковью','церкви'],
+  'любовь': ['любви','любви','любовь','любовью','любви'],
+  'ложь': ['лжи','лжи','ложь','ложью','лжи'],
+  'рожь': ['ржи','ржи','рожь','рожью','ржи']
+};
+const FLEET = { 'лев':'льв','лёд':'льд','лед':'льд','рот':'рт','лоб':'лб','сон':'сн','пёс':'пс','пес':'пс','ров':'рв','мох':'мх','лён':'льн','лен':'льн','шов':'шв',
+  'ветер':'ветр','ковёр':'ковр','ковер':'ковр','костёр':'костр','костер':'костр','котёл':'котл','котел':'котл','орёл':'орл','орел':'орл','осёл':'осл','осел':'осл',
+  'козёл':'козл','козел':'козл','узел':'узл','угол':'угл','дятел':'дятл','пепел':'пепл','ёж':'еж','ёрш':'ерш',
+  'день':'дн','пень':'пн','огонь':'огн','ремень':'ремн','камень':'камн','корень':'корн','парень':'парн','ливень':'ливн','кашель':'кашл','уголь':'угл','ноготь':'ногт','локоть':'локт',
+  'ручей':'ручь','муравей':'муравь','воробей':'воробь','соловей':'соловь','улей':'уль','заяц':'зайц','палец':'пальц' };
+const NO_FLEET = set('урок восток поток приток исток отток игрок знаток стрелок ездок едок седок ходок курок пророк порок намёк намек упрёк упрек человек чебурек кузнец мудрец хитрец');
+const YO_END = set('конь день огонь пень рубль гвоздь дождь вождь царь словарь букварь фонарь календарь сухарь вратарь снегирь пузырь богатырь январь февраль сентябрь октябрь ноябрь декабрь король корабль журавль ремень шмель руль ноль уголь карась секретарь ручей муравей воробей соловей');
+const YO_FEM = set('земля заря семья статья скамья свинья судья змея струя швея ноздря петля ступня ладья колея чешуя');
+const OY_FEM = set('свеча душа овца лапша госпожа парча саранча каланча левша межа ханжа');
+const EM_HUSH = set('товарищ сторож ландыш финиш пляж плюш душ муж матч выигрыш проигрыш подкидыш детёныш детеныш марш фарш стаж страж пейзаж экипаж персонаж массаж инструктаж гуляш');
+const OM_TS = set('огурец продавец молодец жеребец леденец удалец');
+const EM_TS = set('палец заяц месяц танец перец немец братец');
+const MASC_B = set('конь день огонь пень рубль гвоздь дождь вождь царь зверь король корабль журавль шмель руль ноль нуль уголь кашель ремень камень корень парень ливень олень тюлень лось гусь карась медведь лебедь голубь гость червь окунь ноготь локоть кисель картофель автомобиль портфель рояль отель контроль пароль стиль спектакль ансамбль соболь тополь жёлудь желудь якорь лагерь пудель кремль вихрь апрель февраль июль июнь январь сентябрь октябрь ноябрь декабрь');
+const FEM_EN = set('тень лень сирень осень ступень мишень плесень');
+const NOT_ANIM_TEL = set('выключатель двигатель показатель указатель ограничитель');
+const ANIM = set('кот пёс пес волк лев тигр слон бык баран козёл козел осёл осел конь олень лось заяц ёж медведь бобр барсук крот хомяк кролик лис шакал верблюд жираф бегемот носорог крокодил дельфин кит тюлень морж пингвин орёл орел сокол голубь воробей соловей дятел аист лебедь гусь петух индюк попугай журавль снегирь скворец грач ворон муравей жук паук комар шмель червь окунь карась сом щук карп ' +
+  'мальчик брат сын отец дед внук дядя друг сосед гость ученик школьник студент врач доктор повар пекарь лётчик летчик космонавт солдат король царь принц богатырь человек ребёнок ребенок мужчина юноша продавец кузнец пастух рыбак охотник художник музыкант певец герой гном великан щенок котёнок котенок телёнок теленок зайчик товарищ сторож гений пастух вратарь водитель');
+const fleetStem = w => {
+  if (FLEET[w]) return FLEET[w];
+  if (NO_FLEET.has(w) || syl(w) < 2) return null;
+  const p = w.slice(0, -2);
+  if (/ок$/.test(w)) return p + 'к';
+  if (/[её]к$/.test(w)) return /[аеёиоуыэюя]$/.test(p) ? p + 'йк' : /[лн]$/.test(p) || w.endsWith('ёк') ? p + 'ьк' : p + 'к';
+  if (/ец$/.test(w)) return /[аеёиоуыэюя]$/.test(p) ? p + 'йц' : /л$/.test(p) ? p + 'ьц' : p + 'ц';
+  return null;
+};
+const isMascSoft = w => /(тель|арь|ырь)$/.test(w) || MASC_B.has(w) || (/ень$/.test(w) && !FEM_EN.has(w));
+function info(w) {
+  const special = IRR[w] || INDECL.has(w) || MYA.has(w) || /[уюэ]$/.test(w);
+  const gender = !special && /ь$/.test(w) && !/[жшчщ]ь$/.test(w) && !/ость$/.test(w) || w === 'гость';
+  return { gender, masc: isMascSoft(w) };
+}
+const guessAnim = w => ANIM.has(w) || (/тель$/.test(w) && !NOT_ANIM_TEL.has(w)) || /[ёо]нок$/.test(w) || (/ист$/.test(w) && syl(w) > 1);
+const needsAnim = (w, masc) => !IRR[w] && !INDECL.has(w) && !MYA.has(w) && (/[^аеёиоуыэюяьй]$/.test(w) || /й$/.test(w) || (/ь$/.test(w) && masc));
+
+function decline(w, o) {
+  if (IRR[w]) return [w, ...IRR[w]];
+  if (INDECL.has(w) || /[уюэ]$/.test(w)) return [w, w, w, w, w, w];
+  if (/[ыи]$/.test(w)) return null;
+  const anim = o.anim;
+  if (MYA.has(w)) { const s = w.slice(0, -1); return [w, s+'ени', s+'ени', w, s+'енем', s+'ени']; }
+  const s = w.slice(0, -1);
+  if (/ия$/.test(w)) return [w, s+'и', s+'и', s+'ю', s+'ей', s+'и'];
+  if (/а$/.test(w)) {
+    const t = /[жшчщ]$/.test(s) ? (OY_FEM.has(w) ? 'ой' : 'ей') : /ц$/.test(s) ? (OY_FEM.has(w) ? 'ой' : 'ей') : 'ой';
+    return [w, s + (/[кгхжшчщ]$/.test(s) ? 'и' : 'ы'), s+'е', s+'у', s+t, s+'е'];
+  }
+  if (/я$/.test(w)) return [w, s+'и', s+'е', s+'ю', s + (YO_FEM.has(w) ? 'ёй' : 'ей'), s+'е'];
+  if (/ие$/.test(w)) return [w, s+'я', s+'ю', w, s+'ем', s+'и'];
+  if (/ё$/.test(w)) return [w, s+'я', s+'ю', w, s+'ём', s+'е'];
+  if (/о$/.test(w)) return [w, s+'а', s+'у', w, s+'ом', s+'е'];
+  if (/е$/.test(w)) {
+    const hard = /[жшчщц]$/.test(s);
+    return [w, s + (hard ? 'а' : 'я'), s + (hard ? 'у' : 'ю'), w, s+'ем', s+'е'];
+  }
+  if (/ь$/.test(w) && !o.masc) return [w, s+'и', s+'и', w, w+'ю', s+'и'];
+  if (/[ьй]$/.test(w)) {
+    const b = fleetStem(w) || s;
+    const gen = b + 'я';
+    const yo = YO_END.has(w) || (/арь$/.test(w) && !/(пекарь|слесарь|токарь|лекарь|писарь|аптекарь|библиотекарь)$/.test(w));
+    const prep = /ий$/.test(w) ? b + 'и' : b + 'е';
+    return [w, gen, b+'ю', anim ? gen : w, b + (yo ? 'ём' : 'ем'), prep];
+  }
+  const b = fleetStem(w) || w;
+  const gen = b + 'а';
+  let t = 'ом';
+  if (/[жшчщ]$/.test(b) && EM_HUSH.has(w)) t = 'ем';
+  if (/ц$/.test(b) && (EM_TS.has(w) || (syl(w) >= 3 && !OM_TS.has(w)))) t = 'ем';
+  return [w, gen, b+'у', anim ? gen : w, b+t, b+'е'];
+}
+
+
+/* ---------- Числительные ---------- */
+const NUM = {
+  'ноль': ['ноль','ноля','нолю','ноль','нолём','ноле'], 'нуль': ['нуль','нуля','нулю','нуль','нулём','нуле'],
+  'один': ['один','одного','одному','один','одним','одном'], 'одно': ['одно','одного','одному','одно','одним','одном'],
+  'одна': ['одна','одной','одной','одну','одной','одной'],
+  'два': ['два','двух','двум','два','двумя','двух'], 'две': ['две','двух','двум','две','двумя','двух'],
+  'три': ['три','трёх','трём','три','тремя','трёх'], 'четыре': ['четыре','четырёх','четырём','четыре','четырьмя','четырёх'],
+  'восемь': ['восемь','восьми','восьми','восемь','восемью','восьми'],
+  'сорок': ['сорок','сорока','сорока','сорок','сорока','сорока'],
+  'девяносто': ['девяносто','девяноста','девяноста','девяносто','девяноста','девяноста'],
+  'сто': ['сто','ста','ста','сто','ста','ста']
+};
+'пять шесть семь девять десять одиннадцать двенадцать тринадцать четырнадцать пятнадцать шестнадцать семнадцать восемнадцать девятнадцать двадцать тридцать'
+  .split(' ').forEach(w => { const s = w.slice(0, -1); NUM[w] = [w, s+'и', s+'и', w, w+'ю', s+'и']; });
+'пять шесть семь восемь'.split(' ').forEach(u => { const f = NUM[u], n = u + 'десят';
+  NUM[n] = [n, f[1]+'десяти', f[2]+'десяти', n, f[4]+'десятью', f[5]+'десяти']; });
+const HUND = { 'два':'двести','три':'триста','четыре':'четыреста','пять':'пятьсот','шесть':'шестьсот','семь':'семьсот','восемь':'восемьсот','девять':'девятьсот' };
+Object.keys(HUND).forEach(u => { const f = NUM[u], n = HUND[u];
+  NUM[n] = [n, f[1]+'сот', f[2]+'стам', n, f[4]+'стами', f[5]+'стах']; });
+const NUMQ = ['сколько?', 'скольких?', 'скольким?', 'сколько?', 'сколькими?', 'о скольких?'];
+const U = ['','один','два','три','четыре','пять','шесть','семь','восемь','девять'];
+const TEEN = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
+const TENS = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
+const HUNDS = ['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
+function tri(n) {
+  const w = [HUNDS[Math.floor(n / 100)]], t = n % 100;
+  if (t >= 10 && t < 20) w.push(TEEN[t - 10]); else w.push(TENS[Math.floor(t / 10)], U[t % 10]);
+  return w.filter(Boolean);
+}
+function numToWords(n) {
+  if (n === 0) return ['ноль'];
+  const th = Math.floor(n / 1000), w = [];
+  if (th === 1) w.push('тысяча');
+  else if (th) w.push(...tri(th), 'тысяча');
+  return w.concat(tri(n % 1000));
+}
+function parseNum(raw) {
+  const s = raw.toLowerCase().replace(/ё/g, 'е').trim();
+  let t;
+  if (/^\d[\d\s]*$/.test(s)) { const n = parseInt(s.replace(/\s/g, ''), 10); if (n > 999999) return null; t = numToWords(n); }
+  else {
+    t = s.split(/[\s-]+/).map(x => /^тысяч/.test(x) ? 'тысяча' : x);
+    if (!t.every(x => x === 'тысяча' || NUM[x])) return null;
+  }
+  t = t.map((x, i) => t[i + 1] === 'тысяча' ? (x === 'один' ? 'одна' : x === 'два' ? 'две' : x) : x);
+  return t.join(' ');
+}
+function declineNum(word) {
+  const t = word.split(' ');
+  const parts = t.map((x, i) => {
+    if (x !== 'тысяча') return NUM[x];
+    const prev = t[i - 1];
+    if (!prev || !NUM[prev] || prev === 'одна' || prev === 'тысяча') return ['тысяча','тысячи','тысяче','тысячу','тысячей','тысяче'];
+    if (['две','три','четыре'].includes(prev)) return ['тысячи','тысяч','тысячам','тысячи','тысячами','тысячах'];
+    return ['тысяч','тысяч','тысячам','тысяч','тысячами','тысячах'];
+  });
+  return [0, 1, 2, 3, 4, 5].map(c => parts.map(f => f[c]).join(' '));
+}
+/* ---------- Экран ---------- */
+const CASES = [
+  ['Именительный', 'кто? что?', 'есть', 'именительном'],
+  ['Родительный', 'кого? чего?', 'нет', 'родительном'],
+  ['Дательный', 'кому? чему?', 'рад', 'дательном'],
+  ['Винительный', 'кого? что?', 'вижу', 'винительном'],
+  ['Творительный', 'кем? чем?', 'доволен', 'творительном'],
+  ['Предложный', 'о ком? о чём?', 'думаю', 'предложном']
+];
+const $ = id => document.getElementById(id);
+const empty6 = () => [null, null, null, null, null, null];
+const players = [0, 1].map(() => ({ word: '', cap: false, o: { anim: false, masc: false }, forms: [], order: [], at: empty6(), selected: null, score: 0, rank: 0 }));
+let mode = 1, doneCount = 0;
+
+$('cards').innerHTML = players.map((_, p) => `
+  <div class="mcard p${p}" id="card${p}">
+    <input class="pname-in" id="name${p}" type="text" value="Игрок ${p + 1}" autocomplete="off" aria-label="Имя игрока ${p + 1}">
+    <label class="big" for="word${p}">Напиши слово или число</label>
+    <input class="wordin" id="word${p}" data-word="${p}" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="done">
+    <div class="opts" id="opts${p}" hidden>
+      <fieldset id="optAnim${p}" hidden>
+        <span class="lg">Это</span>
+        <label><input type="radio" name="anim${p}" id="animNo${p}" data-opt="${p}"> что?</label>
+        <label><input type="radio" name="anim${p}" id="animYes${p}" data-opt="${p}"> кто?</label>
+      </fieldset>
+      <fieldset id="optGen${p}" hidden>
+        <span class="lg">Слово</span>
+        <label><input type="radio" name="gen${p}" id="genM${p}" data-opt="${p}"> он, мой</label>
+        <label><input type="radio" name="gen${p}" id="genF${p}" data-opt="${p}"> она, моя</label>
+      </fieldset>
+    </div>
+    <p class="note" id="note${p}"></p>
+    <details id="editBox${p}">
+      <summary>Исправить формы слова</summary>
+      <div class="edit">${CASES.map((c, i) =>
+        `<label>${c[0]}${i === 5 ? ' (с предлогом)' : ''}<input id="form${p}-${i}" data-p="${p}" data-form="${i}" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"></label>`).join('')}</div>
+    </details>
+  </div>`).join('');
+
+$('players').innerHTML = players.map((_, p) => `
+  <section class="player p${p}" id="player${p}" data-p="${p}" aria-label="Игрок ${p + 1}">
+    <div class="ptop" id="ptop${p}" hidden>
+      <span class="pname" id="pname${p}"></span>
+      <span class="score" id="score${p}">Очки: 0</span>
+    </div>
+    <div class="board">
+      <div>
+        <div class="head cols"><span>Падеж</span><span>Вопрос</span><span>Помощник</span><span>Графа</span></div>
+        <div class="head spacer"></div>
+        <div class="cases">${CASES.map((c, i) =>
+          `<div class="case c${i}"><div class="name">${c[0]} <span id="qs${p}-${i}">${c[1]}</span></div><div class="q" id="q${p}-${i}">${c[1]}</div>` +
+          `<div class="help">${c[2]}</div><div class="zone" id="zone${p}-${i}" data-zone="${i}" tabindex="0" role="button" aria-label="Графа: ${c[0].toLowerCase()} падеж"></div></div>`).join('')}</div>
+      </div>
+      <div class="tray">
+        <div class="head">Формы слова</div>
+        <div class="tray-body" id="tray${p}"></div>
+      </div>
+    </div>
+    <div class="check">
+      <button class="main" id="check${p}" data-check="${p}" type="button">Проверить</button>
+      <div class="result" id="result${p}" role="status" aria-live="polite"></div>
+    </div>
+  </section>`).join('');
+
+/* ---------- Меню ---------- */
+function setNote(p, text, warn) { const n = $('note' + p); n.textContent = text; n.classList.toggle('warn', !!warn); }
+const withPrep = s => (/^[аиоуэ]/i.test(s) ? 'об ' : 'о ') + s;
+function compute(p) {
+  const pl = players[p];
+  const capit = s => pl.cap && s ? s[0].toUpperCase() + s.slice(1) : s;
+  const res = pl.num ? declineNum(pl.word) : decline(pl.word, pl.o);
+  if (!res) {
+    pl.forms = [capit(pl.word), '', '', '', '', ''];
+    setNote(p, 'Это слово похоже на множественное число. Напишите его формы в разделе «Исправить формы слова».', true);
+    $('editBox' + p).open = true;
+  } else {
+    pl.forms = res.map(capit);
+    pl.forms[5] = withPrep(pl.forms[5]);
+    setNote(p, '');
+  }
+  pl.forms.forEach((f, i) => { $(`form${p}-${i}`).value = f; });
+  const a = !pl.num && needsAnim(pl.word, pl.o.masc), g = !pl.num && info(pl.word).gender;
+  $('optAnim' + p).hidden = !a; $('optGen' + p).hidden = !g; $('opts' + p).hidden = !(a || g);
+  $('animYes' + p).checked = pl.o.anim; $('animNo' + p).checked = !pl.o.anim;
+  $('genM' + p).checked = pl.o.masc; $('genF' + p).checked = !pl.o.masc;
+}
+function onWord(p) {
+  const pl = players[p], raw = $('word' + p).value.trim();
+  pl.word = ''; pl.forms = []; pl.num = false;
+  $('opts' + p).hidden = true;
+  CASES.forEach((_, i) => { $(`form${p}-${i}`).value = ''; });
+  if (!raw) { setNote(p, ''); return; }
+  const num = parseNum(raw);
+  if (num) { pl.num = true; pl.word = num; pl.cap = false; pl.o = { anim: false, masc: false }; compute(p); return; }
+  if (/\d/.test(raw)) { setNote(p, 'Напиши число от 0 до 999 999.', true); return; }
+  if (!/^[а-яё-]+$/i.test(raw)) { setNote(p, 'Напиши одно слово или числительное русскими буквами.', true); return; }
+  pl.word = raw.toLowerCase(); pl.cap = raw[0] !== raw[0].toLowerCase();
+  pl.o = { masc: info(pl.word).masc, anim: guessAnim(pl.word) };
+  compute(p);
+}
+function setMode(m) {
+  mode = m;
+  $('mode1').setAttribute('aria-pressed', m === 1);
+  $('mode2').setAttribute('aria-pressed', m === 2);
+  $('wrap').classList.toggle('duo', m === 2);
+  $('card1').hidden = m !== 2; $('player1').hidden = m !== 2;
+  $('name0').hidden = m !== 2; $('name1').hidden = m !== 2;
+  $('ptop0').hidden = m !== 2; $('ptop1').hidden = m !== 2;
+  players.forEach(pl => { pl.score = 0; });
+}
+function start() {
+  const ps = mode === 2 ? [0, 1] : [0];
+  for (const p of ps) {
+    const pl = players[p];
+    if (!pl.word) { setNote(p, 'Сначала напиши слово.', true); $('word' + p).focus(); return; }
+    if (pl.forms.some(f => !f)) { setNote(p, 'Заполните все формы слова.', true); $('editBox' + p).open = true; return; }
+  }
+  doneCount = 0;
+  ps.forEach(p => {
+    const pl = players[p];
+    pl.order = shuffle(); pl.at = empty6(); pl.selected = null; pl.rank = 0;
+    clearResult(p);
+    $('pname' + p).textContent = $('name' + p).value.trim() || `Игрок ${p + 1}`;
+    $('score' + p).textContent = 'Очки: ' + pl.score;
+    const Q = pl.num ? NUMQ : CASES.map(c => c[1]);
+    CASES.forEach((_, i) => { $(`q${p}-${i}`).textContent = Q[i]; $(`qs${p}-${i}`).textContent = Q[i]; });
+  });
+  if (document.activeElement) document.activeElement.blur();
+  $('menu').hidden = true; $('modes').hidden = true;
+  $('game').hidden = false; $('back').hidden = false;
+  $('fix').hidden = false; $('bottom').classList.add('ingame');
+  $('wrap').classList.remove('inmenu');
+  ps.forEach(render);
+  fit();
+}
+function showMenu() {
+  $('game').hidden = true; $('back').hidden = true;
+  $('fix').hidden = true; $('bottom').classList.remove('ingame');
+  $('menu').hidden = false; $('modes').hidden = false;
+  $('wrap').classList.add('inmenu');
+}
+function toMenu() {
+  showMenu();
+  [0, 1].forEach(p => { $('word' + p).value = ''; onWord(p); $('editBox' + p).open = false; });
+}
+
+/* ---------- Игра ---------- */
+function chipEl(p, id) {
+  const pl = players[p];
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip' + (pl.selected === id ? ' sel' : '');
+  b.dataset.chip = id;
+  const t = document.createElement('span'); t.textContent = pl.forms[id]; b.append(t);
+  return b;
+}
+/* Длинное слово уменьшается по ширине карточки и остаётся в одну строку. */
+function sizeChips(root) {
+  root.querySelectorAll('.chip').forEach(c => {
+    c.style.fontSize = ''; c.classList.remove('wrap2');
+    const t = c.firstChild, cs = getComputedStyle(c);
+    const base = parseFloat(cs.fontSize);
+    const roomW = c.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const roomH = c.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    if (roomW <= 0 || t.offsetWidth <= roomW) return;
+    let f = base;
+    while (f > 17 && t.offsetWidth > roomW) { f -= 0.5; c.style.fontSize = f + 'px'; }
+    if (t.offsetWidth <= roomW) return;
+    c.classList.add('wrap2'); f = base; c.style.fontSize = f + 'px';
+    while (f > 10 && (t.scrollWidth > roomW || t.offsetHeight > roomH)) { f -= 0.5; c.style.fontSize = f + 'px'; }
+  });
+}
+function render(p) {
+  const pl = players[p];
+  CASES.forEach((_, i) => {
+    const z = $(`zone${p}-${i}`); z.textContent = '';
+    const c = pl.at.indexOf(i);
+    if (c >= 0) z.append(chipEl(p, c));
+  });
+  const body = $('tray' + p); body.textContent = '';
+  CASES.forEach((_, i) => {
+    const cell = document.createElement('div'); cell.className = 'tray-cell';
+    const slot = document.createElement('div'); slot.className = 'slot';
+    const id = pl.order[i];
+    if (id !== undefined && pl.at[id] === null) { slot.classList.add('taken'); slot.append(chipEl(p, id)); }
+    cell.append(slot); body.append(cell);
+  });
+  sizeChips($('player' + p));
+}
+function clearResult(p) { const r = $('result' + p); r.textContent = ''; r.className = 'result'; }
+function shuffle() {
+  const ids = [0, 1, 2, 3, 4, 5];
+  for (let tries = 0; tries < 30; tries++) {
+    for (let i = 5; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    if (ids.filter((id, i) => id === i).length <= 1) break;
+  }
+  return ids;
+}
+function place(p, id, zone) {
+  const pl = players[p];
+  if (zone !== null) {
+    const other = pl.at.indexOf(zone);
+    if (other >= 0 && other !== id) pl.at[other] = pl.at[id];
+  }
+  pl.at[id] = zone; pl.selected = null; clearResult(p); render(p);
+}
+function check(p) {
+  const pl = players[p], r = $('result' + p); r.className = 'result';
+  const low = s => s.toLowerCase();
+  const bad = CASES.map((c, i) => {
+    const id = pl.at.indexOf(i);
+    return id >= 0 && low(pl.forms[id]) === low(pl.forms[i]) ? null : c[3];
+  }).filter(Boolean);
+  if (!bad.length) {
+    r.classList.add('good');
+    if (mode === 2) {
+      if (!pl.rank) {
+        pl.rank = ++doneCount;
+        if (pl.rank === 1) { pl.score++; $('score' + p).textContent = 'Очки: ' + pl.score; }
+      }
+      r.textContent = pl.rank === 1 ? 'Верно! Первое место.' : 'Верно! Второе место.';
+    } else r.textContent = 'Верно';
+    return;
+  }
+  r.classList.add('bad');
+  if (bad.length === 1) r.textContent = `Неверно. Ошибка в ${bad[0]} падеже.`;
+  else r.textContent = `Неверно. Ошибки в падежах: ${bad.slice(0, -1).join(', ')} и ${bad[bad.length - 1]}.`;
+}
+
+$('mode1').addEventListener('click', () => setMode(1));
+$('mode2').addEventListener('click', () => setMode(2));
+$('start').addEventListener('click', start);
+$('back').addEventListener('click', toMenu);
+/* Слова остаются, открываются поля с формами. */
+$('fix').addEventListener('click', () => {
+  showMenu();
+  (mode === 2 ? [0, 1] : [0]).forEach(p => { $('editBox' + p).open = true; });
+});
+$('cards').addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.word !== undefined) onWord(+t.dataset.word);
+  else if (t.dataset.form !== undefined) {
+    const p = +t.dataset.p;
+    if (!players[p].forms.length) players[p].forms = ['', '', '', '', '', ''];
+    players[p].forms[+t.dataset.form] = t.value.trim();
+  }
+});
+$('cards').addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.opt === undefined) return;
+  const p = +t.dataset.opt, pl = players[p];
+  const wasMasc = pl.o.masc;
+  pl.o.anim = $('animYes' + p).checked; pl.o.masc = $('genM' + p).checked;
+  if (pl.o.masc !== wasMasc) pl.o.anim = pl.o.masc && guessAnim(pl.word);
+  compute(p);
+});
+$('cards').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+  e.preventDefault();
+  if (e.target.dataset.word === undefined) return;
+  if (mode === 2 && e.target.dataset.word === '0' && !players[1].word) $('word1').focus();
+  else start();
+});
+
+/* Нажатие: выбрать слово, затем графу. Работает и с клавиатуры. */
+function tap(target) {
+  const btn = target.closest('[data-check]');
+  if (btn) { check(+btn.dataset.check); return; }
+  const root = target.closest('.player');
+  if (!root) return;
+  const p = +root.dataset.p, pl = players[p];
+  const chip = target.closest('.chip');
+  const zone = target.closest('.zone');
+  if (chip && !(pl.selected !== null && zone)) {
+    const id = +chip.dataset.chip;
+    pl.selected = pl.selected === id ? null : id; render(p);
+    return;
+  }
+  if (pl.selected === null) return;
+  if (zone) place(p, pl.selected, +zone.dataset.zone);
+  else if (target.closest('.tray')) place(p, pl.selected, null);
+}
+/* Браузер даёт click только первому пальцу, поэтому нажатия пальцем обрабатываем сами. */
+const taps = new Map();
+let lastTouch = 0;
+document.addEventListener('click', e => {
+  if (e.detail !== 0 && Date.now() - lastTouch < 700) return;
+  tap(e.target);
+});
+document.addEventListener('contextmenu', e => { if (e.target.closest('.player')) e.preventDefault(); });
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if ((e.key === 'Enter' || e.key === ' ') && t.classList && t.classList.contains('zone')) {
+    const p = +t.closest('.player').dataset.p;
+    if (players[p].selected === null) return;
+    e.preventDefault(); place(p, players[p].selected, +t.dataset.zone);
+    $(t.id).focus();
+  }
+});
+
+/* Перетаскивание: мышью, пальцем, на доске. Двое могут тянуть слова одновременно. */
+const drags = new Map();
+function targetAt(d, x, y) {
+  const el = document.elementFromPoint(x, y);
+  const t = el ? el.closest('.zone') || el.closest('.tray') : null;
+  return t && t.closest('.player') === d.root ? t : null;
+}
+function markOver(d, t) {
+  if (d.over) d.over.classList.remove('over');
+  d.over = t && t.classList.contains('zone') ? t : null;
+  if (d.over) d.over.classList.add('over');
+}
+document.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'mouse') {
+    lastTouch = Date.now();
+    if (e.target.closest('.player')) taps.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  }
+  const chip = e.target.closest('.chip');
+  if (!chip || e.button > 0) return;
+  const root = chip.closest('.player');
+  drags.set(e.pointerId, { id: +chip.dataset.chip, el: chip, root, p: +root.dataset.p, x: e.clientX, y: e.clientY, ghost: null, over: null });
+});
+document.addEventListener('pointermove', e => {
+  const d = drags.get(e.pointerId);
+  if (!d) return;
+  if (!d.ghost) {
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+    const r = d.el.getBoundingClientRect();
+    const g = d.el.cloneNode(true);
+    g.classList.remove('sel'); g.classList.add('ghost');
+    g.style.width = r.width + 'px'; g.style.height = r.height + 'px';
+    g.style.fontSize = getComputedStyle(d.el).fontSize;
+    d.dx = d.x - r.left; d.dy = d.y - r.top;
+    document.body.append(g); d.ghost = g;
+    d.el.classList.add('lift');
+  }
+  d.ghost.style.transform = `translate(${e.clientX - d.dx}px, ${e.clientY - d.dy}px)`;
+  markOver(d, targetAt(d, e.clientX, e.clientY));
+  e.preventDefault();
+});
+function endDrag(e, drop) {
+  const d = drags.get(e.pointerId);
+  if (!d) return;
+  drags.delete(e.pointerId);
+  if (!d.ghost) return;
+  d.ghost.remove(); d.el.classList.remove('lift'); markOver(d, null);
+  const t = drop ? targetAt(d, e.clientX, e.clientY) : null;
+  players[d.p].selected = null;
+  if (t) place(d.p, d.id, t.classList.contains('zone') ? +t.dataset.zone : null);
+  else render(d.p);
+}
+document.addEventListener('pointerup', e => {
+  const t = taps.get(e.pointerId), d = drags.get(e.pointerId);
+  taps.delete(e.pointerId);
+  if (e.pointerType !== 'mouse') lastTouch = Date.now();
+  if (t && !(d && d.ghost) && Math.hypot(e.clientX - t.x, e.clientY - t.y) < 14) {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (el) tap(el);
+  }
+  endDrag(e, true);
+});
+document.addEventListener('pointercancel', e => { taps.delete(e.pointerId); endDrag(e, false); });
+
+/* Высота строк зависит только от экрана, а не от длины слова. */
+function fit() {
+  if ($('game').hidden) return;
+  const wrap = $('wrap'), boards = [...document.querySelectorAll('.board')];
+  const vis = boards.filter(b => b.offsetParent !== null);
+  const low = vis[0] && vis[0].clientWidth <= 470 ? 64 : 48;
+  boards.forEach(b => b.style.setProperty('--row', low + 'px'));
+  const cs = getComputedStyle(document.documentElement);
+  const spare = window.innerHeight - wrap.offsetHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const stacked = mode === 2 && getComputedStyle($('players')).gridTemplateColumns.split(' ').length < 2;
+  const row = Math.max(low, Math.min(110, low + Math.floor(spare / (stacked ? 12 : 6))));
+  boards.forEach(b => b.style.setProperty('--row', row + 'px'));
+  [0, 1].forEach(p => { if (mode === 2 || p === 0) sizeChips($('player' + p)); });
+}
+window.addEventListener('resize', fit);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fit(); });
+setMode(1);
+</script>
+
+</body>
+</html>
