@@ -25,7 +25,7 @@ body {
 }
 .wrap {
   max-width: 1060px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px;
-  padding-block: 8px 6px;
+  padding-block: 6px 2px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
@@ -50,7 +50,7 @@ h1 { margin: 0; font: 400 26px/1.1 var(--display); text-wrap: balance; }
 }
 .entry > input::placeholder { color: var(--faint); font-weight: 700; }
 button.main {
-  height: 44px; padding: 0 20px; border: 0; border-radius: 14px; cursor: pointer;
+  height: 40px; padding: 0 20px; border: 0; border-radius: 14px; cursor: pointer;
   font: 800 20px var(--body); background: var(--blue); color: #fff;
 }
 .check button.main { background: var(--good); }
@@ -75,7 +75,7 @@ button.main {
 }
 .score { flex: none; font-weight: 900; font-size: 18px; }
 
-.board { --row: 60px; --tray: 220px; --cols: 158px 136px 82px minmax(0, 1fr); display: grid; grid-template-columns: minmax(0, 1fr) var(--tray); gap: 12px; align-items: start; }
+.board { --row: 60px; --s: 1; --tray: min(calc(220px * var(--s)), 36%); --cols: calc(158px * var(--s)) calc(136px * var(--s)) calc(82px * var(--s)) minmax(0, 1fr); display: grid; grid-template-columns: minmax(0, 1fr) var(--tray); gap: 12px; align-items: start; }
 .head { height: 22px; display: flex; align-items: center; font-size: 15px; font-weight: 800; color: var(--muted); }
 .head.cols { display: grid; gap: 10px; padding: 0 10px; grid-template-columns: var(--cols); }
 .head.spacer { display: none; }
@@ -86,10 +86,10 @@ button.main {
 }
 .c0 { background: var(--c0); } .c1 { background: var(--c1); } .c2 { background: var(--c2); }
 .c3 { background: var(--c3); } .c4 { background: var(--c4); } .c5 { background: var(--c5); }
-.name { font-weight: 900; }
+.name { font-weight: 900; font-size: calc(18px * var(--s, 1)); }
 .name span { display: none; }
-.q { font-size: 17px; }
-.help { font-size: 18px; font-weight: 800; }
+.q { font-size: calc(17px * var(--s, 1)); }
+.help { font-size: calc(18px * var(--s, 1)); font-weight: 800; }
 .zone, .slot {
   height: calc(var(--row) - 8px); display: flex; align-items: stretch; min-width: 0;
   border-radius: 12px; border: 2px dashed var(--line); background: #fff;
@@ -97,14 +97,15 @@ button.main {
 .zone { cursor: pointer; border-color: var(--muted); }
 .zone.over { outline: 3px solid var(--blue); outline-offset: 1px; }
 .zone:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
-.tray-body { display: grid; }
-.tray-cell { height: var(--row); display: flex; align-items: center; }
+.board > * { min-width: 0; }
+.tray-body { display: grid; grid-template-columns: minmax(0, 1fr); }
+.tray-cell { min-width: 0; height: var(--row); display: flex; align-items: center; }
 .slot { width: 100%; }
 .slot.taken { border-color: transparent; background: transparent; }
 .tray-empty { align-self: center; width: 100%; padding: 4px 8px; text-align: center; font-size: 15px; color: var(--muted); }
 .chip {
   flex: 1; min-width: 0; padding: 2px 8px; border: 2px solid var(--card-line); border-radius: 12px;
-  background: var(--card); color: var(--ink); font: 800 21px/1.1 var(--body);
+  background: var(--card); color: var(--ink); font: 800 max(21px, calc(var(--row, 50px) * .44))/1.1 var(--body);
   overflow-wrap: anywhere; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
 .chip.sel { outline: 3px solid var(--blue); outline-offset: 1px; }
@@ -130,15 +131,15 @@ footer a { color: inherit; }
   .duo .players { grid-template-columns: repeat(2, minmax(0, 1fr)); touch-action: none; overscroll-behavior: none; }
 }
 @container (max-width: 800px) {
-  .board { --tray: 160px; --cols: 118px 68px minmax(0, 1fr); gap: 8px; }
+  .board { --tray: min(calc(160px * var(--s)), 36%); --cols: calc(118px * var(--s)) calc(68px * var(--s)) minmax(0, 1fr); gap: 8px; }
   .head.cols { display: none; }
   .head.spacer { display: flex; }
   .case { gap: 6px; padding: 0 8px; }
-  .name { line-height: 1.1; font-size: 15px; }
-  .name span { display: block; font-weight: 700; font-size: 14px; }
+  .name { line-height: 1.1; font-size: calc(15px * var(--s)); }
+  .name span { display: block; font-weight: 700; font-size: calc(14px * var(--s)); }
   .q { display: none; }
-  .help { font-size: 15px; }
-  .chip { font-size: 19px; }
+  .help { font-size: calc(15px * var(--s)); }
+  .chip { font-size: max(19px, calc(var(--row) * .44)); }
 }
 @container (max-width: 560px) {
   .board { --tray: 136px; }
@@ -184,7 +185,7 @@ button.main.gostart { justify-self: center; height: 68px; padding: 0 56px; font-
 .chip span { display: inline-block; }
 .chip.wrap2 { white-space: normal; line-height: 1.05; }
 .chip.wrap2 span { max-width: 100%; }
-.result { min-height: 58px; font-size: 16px; }
+.result { min-height: 56px; font-size: 16px; line-height: 1.1; }
 footer { padding-top: 2px; }
 .mainfoot { justify-content: center; }
 .mainfoot.ingame { justify-content: space-between; }
@@ -193,7 +194,7 @@ footer { padding-top: 2px; }
 .back:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 @media (min-width: 700px) { .duo .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 761px) { .wrap:not(.duo) .menu { max-width: 640px; width: 100%; justify-self: center; } }
-@container (max-width: 800px) { .board { --tray: 180px; } }
+@container (max-width: 800px) { .board { --tray: min(calc(180px * var(--s)), 36%); } }
 @container (max-width: 560px) { .board { --tray: 136px; } .chip { padding: 2px 4px; } }
 @container (max-width: 470px) { .board { --tray: 118px; } }
 </style>
@@ -1012,9 +1013,23 @@ function fit() {
   const cs = getComputedStyle(document.documentElement);
   const spare = window.innerHeight - wrap.offsetHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   const stacked = mode === 2 && getComputedStyle($('players')).gridTemplateColumns.split(' ').length < 2;
-  const row = Math.max(low, Math.min(110, low + Math.floor(spare / (stacked ? 12 : 6))));
+  const row = Math.max(low, Math.min(170, low + Math.floor(spare / (stacked ? 12 : 6))));
   boards.forEach(b => b.style.setProperty('--row', row + 'px'));
+  scaleLabels(vis, row);
   [0, 1].forEach(p => { if (mode === 2 || p === 0) sizeChips($('player' + p)); });
+}
+/* Надписи падежей растут вместе со строкой, но оставляют место для карточек. */
+function scaleLabels(vis, row) {
+  vis.forEach(b => {
+    let s = b.clientWidth <= 560 ? 1 : Math.min(2.2, row / 56);
+    const ok = () => {
+      const z = b.querySelector('.zone'), t = b.querySelector('.tray-cell');
+      if (z && t && z.clientWidth < t.clientWidth * 0.9) return false;
+      return [...b.querySelectorAll('.name, .help, .q')].every(e => e.offsetParent === null || e.scrollWidth <= e.clientWidth + 1);
+    };
+    b.style.setProperty('--s', s);
+    while (s > 1 && !ok()) { s = Math.max(1, s - 0.05); b.style.setProperty('--s', s.toFixed(2)); }
+  });
 }
 window.addEventListener('resize', fit);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fit(); });
