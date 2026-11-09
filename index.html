@@ -196,6 +196,7 @@ footer { padding-top: 2px; }
 .marking .chip [data-k] { border-radius: 4px; }
 @media (hover: hover) { .marking .chip [data-k]:hover { background: rgba(201, 36, 27, .15); } }
 .end { border: max(2px, .07em) solid var(--bad); border-radius: .12em; padding: 0 .03em; }
+.zslot { display: inline-block; width: .5em; height: .7em; margin-left: .06em; vertical-align: .04em; border: max(2px, .05em) dashed rgba(201, 36, 27, .45); border-radius: .12em; }
 .end.zero { display: inline-block; width: .5em; height: .7em; margin-left: .06em; vertical-align: .04em; padding: 0; }
 .fixbtn:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
 .back:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
@@ -801,20 +802,22 @@ function chipEl(p, id) {
   pl.forms[id].split(' ').forEach((w, wi) => {
     if (wi) t.append(' ');
     if (id === 5 && wi === 0 && /^(о|об|обо)$/i.test(w)) { t.append(w); return; }
-    const st = marks[wi];
+    const r = marks[wi];
     let box = null;
     [...w].forEach((ch, k) => {
       const l = document.createElement('span'); l.textContent = ch; l.dataset.w = wi; l.dataset.k = k;
-      if (st !== undefined && k === st) { box = document.createElement('span'); box.className = 'end'; t.append(box); }
+      if (r && k === r[0] && r[0] < w.length) { box = document.createElement('span'); box.className = 'end'; t.append(box); }
       (box || t).append(l);
+      if (box && k === r[1]) box = null;
     });
-    if (st === w.length) { const z = document.createElement('span'); z.className = 'end zero'; z.dataset.w = wi; t.append(z); }
+    if (r && r[0] === w.length) { const z = document.createElement('span'); z.className = 'end zero'; z.dataset.w = wi; t.append(z); }
+    else if (pl.marking) { const z = document.createElement('span'); z.className = 'zslot'; z.dataset.w = wi; t.append(z); }
   });
   b.append(t);
   return b;
 }
-/* Окончание: нажми на букву — рамка от неё до конца слова.
-   Снова на ту же букву — убрать. На последнюю букву повторно — нулевое окончание. */
+/* Окончание: ребёнок сам ведёт пальцем по буквам — рамка растягивается на выбранные буквы.
+   Нажатие внутри рамки убирает её. Пунктирный квадратик после слова — нулевое окончание. */
 function setMarking(p, on) {
   const pl = players[p]; pl.marking = on; pl.selected = null;
   $('mark' + p).setAttribute('aria-pressed', on);
@@ -822,16 +825,44 @@ function setMarking(p, on) {
   $('player' + p).classList.toggle('marking', on);
 }
 function mark(p, chip, target) {
-  const pl = players[p], id = +chip.dataset.chip, m = pl.marks[id];
-  const z = target.closest('.end.zero');
-  if (z) { delete m[+z.dataset.w]; render(p); return; }
-  const l = target.closest('[data-k]');
-  if (!l) return;
-  const wi = +l.dataset.w, k = +l.dataset.k, len = pl.forms[id].split(' ')[wi].length;
-  if (m[wi] !== k) m[wi] = k;
-  else if (k === len - 1) m[wi] = len;
-  else delete m[wi];
+  const pl = players[p], m = pl.marks[+chip.dataset.chip];
+  const z = target.closest('.end.zero, .zslot');
+  if (!z) return;
+  const wi = +z.dataset.w, len = pl.forms[+chip.dataset.chip].split(' ')[wi].length;
+  if (z.classList.contains('zslot')) m[wi] = [len, len]; else delete m[wi];
   render(p);
+}
+const marksDrag = new Map();
+function letterAt(x, y, chipId, root, wi) {
+  const el = document.elementFromPoint(x, y), l = el && el.closest('[data-k]');
+  if (!l || +l.dataset.w !== wi || l.closest('.player') !== root) return null;
+  const c = l.closest('.chip');
+  return c && +c.dataset.chip === chipId ? +l.dataset.k : null;
+}
+function markStart(e, chip, root) {
+  const l = e.target.closest('[data-k]');
+  if (!l) return;
+  const p = +root.dataset.p, id = +chip.dataset.chip, wi = +l.dataset.w, k = +l.dataset.k;
+  const old = players[p].marks[id][wi];
+  marksDrag.set(e.pointerId, { p, id, wi, a: k, b: k, root, moved: false, inside: !!(old && k >= old[0] && k <= old[1]) });
+  players[p].marks[id][wi] = [k, k];
+  if (!(old && old[0] === k && old[1] === k)) render(p);
+  e.preventDefault();
+}
+function markMove(e) {
+  const d = marksDrag.get(e.pointerId);
+  if (!d) return false;
+  const k = letterAt(e.clientX, e.clientY, d.id, d.root, d.wi);
+  if (k !== null && k !== d.b) { d.b = k; d.moved = true; players[d.p].marks[d.id][d.wi] = [Math.min(d.a, k), Math.max(d.a, k)]; render(d.p); }
+  e.preventDefault();
+  return true;
+}
+function markEnd(e) {
+  const d = marksDrag.get(e.pointerId);
+  if (!d) return false;
+  marksDrag.delete(e.pointerId);
+  if (!d.moved && d.inside) { delete players[d.p].marks[d.id][d.wi]; render(d.p); }
+  return true;
 }
 /* Длинное слово уменьшается по ширине карточки и остаётся в одну строку. */
 function sizeChips(root) {
@@ -1005,10 +1036,11 @@ document.addEventListener('pointerdown', e => {
   const chip = e.target.closest('.chip');
   if (!chip || e.button > 0) return;
   const root = chip.closest('.player');
-  if (players[+root.dataset.p].marking) return;
+  if (players[+root.dataset.p].marking) { markStart(e, chip, root); return; }
   drags.set(e.pointerId, { id: +chip.dataset.chip, el: chip, root, p: +root.dataset.p, x: e.clientX, y: e.clientY, ghost: null, over: null });
 });
 document.addEventListener('pointermove', e => {
+  if (markMove(e)) return;
   const d = drags.get(e.pointerId);
   if (!d) return;
   if (!d.ghost) {
@@ -1038,6 +1070,7 @@ function endDrag(e, drop) {
   else render(d.p);
 }
 document.addEventListener('pointerup', e => {
+  if (markEnd(e)) { taps.delete(e.pointerId); return; }
   const t = taps.get(e.pointerId), d = drags.get(e.pointerId);
   taps.delete(e.pointerId);
   if (e.pointerType !== 'mouse') lastTouch = Date.now();
@@ -1047,7 +1080,7 @@ document.addEventListener('pointerup', e => {
   }
   endDrag(e, true);
 });
-document.addEventListener('pointercancel', e => { taps.delete(e.pointerId); endDrag(e, false); });
+document.addEventListener('pointercancel', e => { marksDrag.delete(e.pointerId); taps.delete(e.pointerId); endDrag(e, false); });
 
 /* Высота строк зависит только от экрана, а не от длины слова. */
 function fit() {
