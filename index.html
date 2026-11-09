@@ -190,6 +190,13 @@ footer { padding-top: 2px; }
 .mainfoot { justify-content: center; }
 .mainfoot.ingame { justify-content: space-between; }
 .fixbtn { padding: 4px 2px; cursor: pointer; font: 700 15px var(--body); color: var(--muted); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; }
+.markbtn { height: 40px; padding: 0 16px; cursor: pointer; font: 800 18px var(--body); color: var(--bad); background: #fff; border: 3px solid var(--bad); border-radius: 14px; }
+.markbtn[aria-pressed="true"] { color: #fff; background: var(--bad); }
+.marking .chip { cursor: pointer; }
+.marking .chip [data-k] { border-radius: 4px; }
+@media (hover: hover) { .marking .chip [data-k]:hover { background: rgba(201, 36, 27, .15); } }
+.end { border: max(2px, .07em) solid var(--bad); border-radius: .12em; padding: 0 .03em; }
+.end.zero { display: inline-block; width: .5em; height: .7em; margin-left: .06em; vertical-align: .04em; padding: 0; }
 .fixbtn:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
 .back:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 @media (min-width: 700px) { .duo .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -631,7 +638,7 @@ const CASES = [
 ];
 const $ = id => document.getElementById(id);
 const empty6 = () => [null, null, null, null, null, null];
-const players = [0, 1].map(() => ({ word: '', cap: false, o: { anim: false, masc: false }, forms: [], order: [], at: empty6(), selected: null, score: 0, rank: 0 }));
+const players = [0, 1].map(() => ({ word: '', cap: false, o: { anim: false, masc: false }, forms: [], order: [], at: empty6(), selected: null, score: 0, rank: 0, marks: [], marking: false }));
 let mode = 1, doneCount = 0;
 
 $('cards').innerHTML = players.map((_, p) => `
@@ -684,6 +691,7 @@ $('players').innerHTML = players.map((_, p) => `
     </div>
     <div class="check">
       <button class="main" id="check${p}" data-check="${p}" type="button">Проверить</button>
+      <button class="markbtn" id="mark${p}" data-mark="${p}" type="button" aria-pressed="false">Выделить окончание</button>
       <div class="result" id="result${p}" role="status" aria-live="polite"></div>
     </div>
   </section>`).join('');
@@ -757,6 +765,7 @@ function start() {
   ps.forEach(p => {
     const pl = players[p];
     pl.order = shuffle(); pl.at = empty6(); pl.selected = null; pl.rank = 0;
+    pl.marks = CASES.map(() => ({})); setMarking(p, false);
     clearResult(p);
     $('pname' + p).textContent = $('name' + p).value.trim() || `Игрок ${p + 1}`;
     $('score' + p).textContent = 'Очки: ' + pl.score;
@@ -788,8 +797,41 @@ function chipEl(p, id) {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'chip' + (pl.selected === id ? ' sel' : '');
   b.dataset.chip = id;
-  const t = document.createElement('span'); t.textContent = pl.forms[id]; b.append(t);
+  const t = document.createElement('span'), marks = (pl.marks && pl.marks[id]) || {};
+  pl.forms[id].split(' ').forEach((w, wi) => {
+    if (wi) t.append(' ');
+    if (id === 5 && wi === 0 && /^(о|об|обо)$/i.test(w)) { t.append(w); return; }
+    const st = marks[wi];
+    let box = null;
+    [...w].forEach((ch, k) => {
+      const l = document.createElement('span'); l.textContent = ch; l.dataset.w = wi; l.dataset.k = k;
+      if (st !== undefined && k === st) { box = document.createElement('span'); box.className = 'end'; t.append(box); }
+      (box || t).append(l);
+    });
+    if (st === w.length) { const z = document.createElement('span'); z.className = 'end zero'; z.dataset.w = wi; t.append(z); }
+  });
+  b.append(t);
   return b;
+}
+/* Окончание: нажми на букву — рамка от неё до конца слова.
+   Снова на ту же букву — убрать. На последнюю букву повторно — нулевое окончание. */
+function setMarking(p, on) {
+  const pl = players[p]; pl.marking = on; pl.selected = null;
+  $('mark' + p).setAttribute('aria-pressed', on);
+  $('mark' + p).textContent = on ? 'Готово' : 'Выделить окончание';
+  $('player' + p).classList.toggle('marking', on);
+}
+function mark(p, chip, target) {
+  const pl = players[p], id = +chip.dataset.chip, m = pl.marks[id];
+  const z = target.closest('.end.zero');
+  if (z) { delete m[+z.dataset.w]; render(p); return; }
+  const l = target.closest('[data-k]');
+  if (!l) return;
+  const wi = +l.dataset.w, k = +l.dataset.k, len = pl.forms[id].split(' ')[wi].length;
+  if (m[wi] !== k) m[wi] = k;
+  else if (k === len - 1) m[wi] = len;
+  else delete m[wi];
+  render(p);
 }
 /* Длинное слово уменьшается по ширине карточки и остаётся в одну строку. */
 function sizeChips(root) {
@@ -908,10 +950,13 @@ $('cards').addEventListener('keydown', e => {
 function tap(target) {
   const btn = target.closest('[data-check]');
   if (btn) { check(+btn.dataset.check); return; }
+  const mb = target.closest('[data-mark]');
+  if (mb) { const q = +mb.dataset.mark; setMarking(q, !players[q].marking); render(q); return; }
   const root = target.closest('.player');
   if (!root) return;
   const p = +root.dataset.p, pl = players[p];
   const chip = target.closest('.chip');
+  if (pl.marking) { if (chip) mark(p, chip, target); return; }
   const zone = target.closest('.zone');
   if (chip && !(pl.selected !== null && zone)) {
     const id = +chip.dataset.chip;
@@ -960,6 +1005,7 @@ document.addEventListener('pointerdown', e => {
   const chip = e.target.closest('.chip');
   if (!chip || e.button > 0) return;
   const root = chip.closest('.player');
+  if (players[+root.dataset.p].marking) return;
   drags.set(e.pointerId, { id: +chip.dataset.chip, el: chip, root, p: +root.dataset.p, x: e.clientX, y: e.clientY, ghost: null, over: null });
 });
 document.addEventListener('pointermove', e => {
